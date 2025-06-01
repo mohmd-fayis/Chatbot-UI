@@ -14,7 +14,7 @@ const ChatInterface = () => {
     {
       id: '1',
       type: 'bot',
-      content:{content: 'Hello! How can I help you today?'},
+      content: { content: 'Hello! How can I help you today?' },
       timestamp: new Date()
     }
   ]);
@@ -45,17 +45,23 @@ const ChatInterface = () => {
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate bot response
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: `${Date.now()}`,
-        type: 'bot',
-        content: `You said: "${inputValue}". In a real implementation, this would connect to your backend API.`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 1500);
+    const response = await fetch('http://localhost:8000/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ query: inputValue })
+    });
+
+    const data = await response.json();
+    const botMessage: Message = {
+      id: `${Date.now()}`,
+      type: 'bot',
+      content: data,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, botMessage]);
+    setIsTyping(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
