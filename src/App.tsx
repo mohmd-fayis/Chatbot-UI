@@ -4,20 +4,13 @@ import './App.css';
 
 type Message = {
   id: string;
-  type: 'user' | 'bot';
+  role: 'user' | 'assistant';
   content: object | string;
   timestamp: Date;
 };
 
 const ChatInterface = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'bot',
-      content: { content: 'Hello! How can I help you today?' },
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -27,16 +20,27 @@ const ChatInterface = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  const fetchMessages = async () => {
+    const response = await fetch('http://localhost:8000/chat');
+    const data = await response.json();
+    console.log("fetched messages: ", data);
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: 'Hello! How can I help you today?',
+        timestamp: new Date()
+      }
+      , ...data
+    ]);
+  }
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
 
     const userMessage: Message = {
       id: `${Date.now()}`,
-      type: "user",
+      role: "user",
       content: inputValue,
       timestamp: new Date()
     };
@@ -45,23 +49,37 @@ const ChatInterface = () => {
     setInputValue('');
     setIsTyping(true);
 
-    const response = await fetch('http://localhost:8000/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query: inputValue })
-    });
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query: inputValue })
+      });
 
-    const data = await response.json();
-    const botMessage: Message = {
-      id: `${Date.now()}`,
-      type: 'bot',
-      content: data,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, botMessage]);
-    setIsTyping(false);
+      const data = await response.json();
+      const botMessage: Message = {
+        id: `${Date.now()}`,
+        role: 'assistant',
+        content: data,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.log("failed to get response: ", error);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `${Date.now()}`,
+          role: 'assistant',
+          content: 'I am sorry, I could not process your request. Please try again.',
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -70,6 +88,14 @@ const ChatInterface = () => {
       handleSend();
     }
   };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
 
   return (
     <div className='container'>
@@ -137,8 +163,8 @@ const ChatInterface = () => {
   );
 };
 
-const renderMessage = (message: Message) => {
-  if (message.type === 'user' && typeof message.content === 'string') {
+const renderMessage = (message: Message, index: number) => {
+  if (message.role === 'user' && typeof message.content === 'string') {
     return (
       <div key={message.id} className="user-message-container">
         <div className="user-message-wrapper">
