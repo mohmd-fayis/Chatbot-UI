@@ -16,14 +16,21 @@ import {
 import "./App.css";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: ResponseData | string;
-  timestamp: Date;
+// Updated type definitions to handle both old and new response formats
+type TableContent =
+  | {
+      title?: string;
+      columns: string[];
+      rows: any[][];
+    }
+  | any[]; // Support both new structured format and old array format
+
+type ComponentResponse = {
+  component: "text" | "table" | "list" | "bar_chart" | "pie_chart";
+  content: string | TableContent | any[];
 };
 
-type ResponseData = {
+type LegacyResponseData = {
   response: {
     type: string;
     component: string;
@@ -31,6 +38,19 @@ type ResponseData = {
     sql?: string;
     result?: any[];
   };
+};
+
+type NewResponseData = {
+  response: ComponentResponse[];
+};
+
+type ResponseData = LegacyResponseData | NewResponseData;
+
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: ResponseData | string;
+  timestamp: Date;
 };
 
 const COLORS = [
@@ -48,6 +68,7 @@ const ChatInterface = () => {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [useRAG, setUseRAG] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -132,7 +153,7 @@ const ChatInterface = () => {
     setIsTyping(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/chat`, {
+      const response = await fetch(`${API_BASE_URL}/chat?rag=${useRAG}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,6 +162,7 @@ const ChatInterface = () => {
       });
 
       const data = await response.json();
+      console.log(data, "daaaa");
       const botMessage: Message = {
         id: `bot-${Date.now()}`,
         role: "assistant",
@@ -203,39 +225,82 @@ const ChatInterface = () => {
     scrollToBottom();
   }, [messages]);
 
-  const renderTable = (data: any[]) => {
-    if (!data || data.length === 0) return null;
+  // Updated renderTable to handle both old array format and new structured format
+  const renderTable = (data: TableContent) => {
+    if (!data) return null;
 
-    const columns = Object.keys(data[0]);
+    // Handle new structured format with title, columns, and rows
+    if (typeof data === "object" && "columns" in data && "rows" in data) {
+      const { title, columns, rows } = data;
 
-    return (
-      <div className="table-container">
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                {columns.map((column) => (
-                  <th key={column} className="table-header">
-                    {column.replace(/_/g, " ").toUpperCase()}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row, index) => (
-                <tr key={index} className="table-row">
-                  {columns.map((column) => (
-                    <td key={column} className="table-cell">
-                      {row[column]?.toString() || ""}
-                    </td>
+      if (!rows || rows.length === 0) return null;
+
+      return (
+        <div className="table-container">
+          {title && <h3 className="table-title">{title}</h3>}
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {columns.map((column, index) => (
+                    <th key={index} className="table-header">
+                      {column.toString().replace(/_/g, " ").toUpperCase()}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIndex) => (
+                  <tr key={rowIndex} className="table-row">
+                    {row.map((cell, cellIndex) => (
+                      <td key={cellIndex} className="table-cell">
+                        {cell?.toString() || ""}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    // Handle old array format (fallback)
+    if (Array.isArray(data) && data.length > 0) {
+      const columns = Object.keys(data[0]);
+
+      return (
+        <div className="table-container">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column} className="table-header">
+                      {column.replace(/_/g, " ").toUpperCase()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, index) => (
+                  <tr key={index} className="table-row">
+                    {columns.map((column) => (
+                      <td key={column} className="table-cell">
+                        {row[column]?.toString() || ""}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   const renderList = (data: any[]) => {
@@ -256,13 +321,45 @@ const ChatInterface = () => {
     );
   };
 
-  const renderBarChart = (data: any[]) => {
-    if (!data || data.length === 0) return null;
+  const COLORS = [
+    "#4F46E5",
+    "#EC4899",
+    "#10B981",
+    "#F59E0B",
+    "#6366F1",
+    "#8B5CF6",
+    "#F97316",
+    "#22D3EE",
+  ];
 
-    const keys = Object.keys(data[0]);
-    const xKey = keys[0];
-    const valueKey = keys[keys.length - 1];
-    const categoryKey = keys.length > 2 ? keys[1] : null;
+  const renderBarChart = (content: {
+    title?: string;
+    x_axis?: string;
+    y_axis?: string;
+    data?: any[];
+  }) => {
+    const { title, x_axis, y_axis, data } = content || {};
+
+    // Basic checks
+    if (!data || !Array.isArray(data) || data.length === 0) return null;
+
+    const sample = data[0];
+    const keys = sample ? Object.keys(sample) : [];
+
+    // Map user-provided axis labels to keys in data (case-insensitive match)
+    const xKey =
+      keys.find((key) =>
+        key.toLowerCase().includes(x_axis?.toLowerCase() || "")
+      ) || keys[0];
+    const valueKey =
+      keys.find((key) =>
+        key.toLowerCase().includes(y_axis?.toLowerCase() || "")
+      ) ||
+      keys.find((k) => k !== xKey) ||
+      keys[1];
+
+    // Determine categoryKey (if any extra key is left)
+    const categoryKey = keys.find((k) => k !== xKey && k !== valueKey) || null;
 
     let barData = data;
     let bars = [];
@@ -289,11 +386,19 @@ const ChatInterface = () => {
         />
       ));
     } else {
-      bars = [<Bar key={valueKey} dataKey={valueKey} fill="#667eea" />];
+      bars = [
+        <Bar
+          key={valueKey}
+          dataKey={valueKey}
+          fill="#4F46E5"
+          name={valueKey}
+        />,
+      ];
     }
 
     return (
-      <div className="chart-container">
+      <div className="my-4">
+        {title && <h3 className="text-base font-semibold mb-2">{title}</h3>}
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={barData}
@@ -370,6 +475,35 @@ const ChatInterface = () => {
     );
   };
 
+  // Updated to handle new component format
+  const renderResponseComponent = (component: ComponentResponse) => {
+    switch (component.component) {
+      case "text":
+        return <p className="message-text">{component.content as string}</p>;
+      case "table":
+        return renderTable(component.content as TableContent);
+      case "list":
+        return renderList(component.content as any[]);
+      case "bar_chart":
+        return renderBarChart(component.content as any[]);
+      case "pie_chart":
+        return renderPieChart(component.content as any[]);
+      default:
+        return (
+          <pre className="json-content">
+            {JSON.stringify(component, null, 2)}
+          </pre>
+        );
+    }
+  };
+
+  // Helper function to check if response is new format
+  const isNewResponseFormat = (
+    responseData: ResponseData
+  ): responseData is NewResponseData => {
+    return Array.isArray((responseData as NewResponseData).response);
+  };
+
   const renderMessage = (message: Message) => {
     if (message.role === "user" && typeof message.content === "string") {
       return (
@@ -399,25 +533,35 @@ const ChatInterface = () => {
             <div className="bot-message-bubble">
               {responseData?.response ? (
                 <div className="response-content">
-                  {responseData.response.text && (
-                    <p className="message-text">{responseData.response.text}</p>
+                  {isNewResponseFormat(responseData) ? (
+                    // Handle new format with multiple components
+                    responseData.response.map((component, index) => (
+                      <div key={index} className="response-component">
+                        {renderResponseComponent(component)}
+                      </div>
+                    ))
+                  ) : (
+                    // Handle legacy single component response
+                    <>
+                      {responseData.response.text && (
+                        <p className="message-text">
+                          {responseData.response.text}
+                        </p>
+                      )}
+                      {responseData.response.component === "table" &&
+                        responseData.response.result &&
+                        renderTable(responseData.response.result)}
+                      {responseData.response.component === "list" &&
+                        responseData.response.result &&
+                        renderList(responseData.response.result)}
+                      {responseData.response.component === "bar_chart" &&
+                        responseData.response.result &&
+                        renderBarChart(responseData.response.result)}
+                      {responseData.response.component === "pie_chart" &&
+                        responseData.response.result &&
+                        renderPieChart(responseData.response.result)}
+                    </>
                   )}
-
-                  {responseData.response.component === "table" &&
-                    responseData.response.result &&
-                    renderTable(responseData.response.result)}
-
-                  {responseData.response.component === "list" &&
-                    responseData.response.result &&
-                    renderList(responseData.response.result)}
-
-                  {responseData.response.component === "bar_chart" &&
-                    responseData.response.result &&
-                    renderBarChart(responseData.response.result)}
-
-                  {responseData.response.component === "pie_chart" &&
-                    responseData.response.result &&
-                    renderPieChart(responseData.response.result)}
                 </div>
               ) : typeof message.content === "object" ? (
                 <pre className="json-content">
@@ -449,17 +593,33 @@ const ChatInterface = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleClear}
-            disabled={isClearing}
-            className="clear-button"
-            title="Clear Chat"
-          >
-            <Trash2 size={18} />
-            <span className="clear-button-text">
-              {isClearing ? "Clearing..." : "Clear"}
-            </span>
-          </button>
+          <div className="chat-header-right">
+            <div className="rag-toggle">
+              <label className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={useRAG}
+                  onChange={() => setUseRAG(!useRAG)}
+                  className="toggle-input"
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-text">
+                  {useRAG ? "RAG Mode" : "Normal Mode"}
+                </span>
+              </label>
+            </div>
+            <button
+              onClick={handleClear}
+              disabled={isClearing}
+              className="clear-button"
+              title="Clear Chat"
+            >
+              <Trash2 size={18} />
+              <span className="clear-button-text">
+                {isClearing ? "Clearing..." : "Clear"}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -508,8 +668,6 @@ const ChatInterface = () => {
           </button>
         </div>
       </div>
-
-   
     </div>
   );
 };
