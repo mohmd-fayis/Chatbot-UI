@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, RotateCcw } from "lucide-react";
+import { Send, User, Bot, PlusIcon, LightbulbIcon } from "lucide-react";
 import "./App.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -44,10 +44,10 @@ type BarChartContent = {
 
 export type TableContent =
   | {
-      title?: string;
-      columns: string[];
-      rows: any[][];
-    }
+    title?: string;
+    columns: string[];
+    rows: any[][];
+  }
   | Record<string, any>[];
 
 type PieChartData = {
@@ -84,10 +84,11 @@ const COLORS = [
 
 const defaultPrompts = [
   "Which department has the highest number of employees?",
-  "Who are the top vendors providing maintenance services most frequently",
-  "Are there any departments with outstanding (unresolved) maintenance issues?",
-  "Who heads each department?",
   "What is the distribution of employees by designation?",
+  "Are there any departments with outstanding (unresolved) maintenance issues?",
+  "Who are the top vendors providing maintenance services most frequently",
+  "Are there any batches that experienced delivery delays?",
+  "Which are the assets frequently getting damaged?"
 ];
 
 // Tooltip Component
@@ -259,21 +260,14 @@ const ChatInterface = () => {
               <Bot size={20} color="white" />
             </div>
             <div>
-              <h1 className="chat-header-title">Lark AI Assistant</h1>
+              <h1 className="chat-header-title">Lark AI</h1>
               <p className="chat-header-subtitle">Online</p>
             </div>
           </div>
           <div className="chat-header-right">
-            <button
-              onClick={clearChat}
-              className="new-chat-button"
-              title="Start New Chat"
-            >
-              <RotateCcw size={16} />
-              <span>New Chat</span>
-            </button>
             <div className="rag-toggle">
               <label className="toggle-label">
+                <span className="toggle-text">PRO</span>
                 <input
                   type="checkbox"
                   checked={useRAG}
@@ -281,9 +275,16 @@ const ChatInterface = () => {
                   className="toggle-input"
                 />
                 <span className="toggle-slider"></span>
-                <span className="toggle-text">RAG MODE</span>
               </label>
             </div>
+            <button
+              onClick={clearChat}
+              className="new-chat-button"
+              title="Start New Chat"
+            >
+              <span>New</span>
+              <PlusIcon size={16} />
+            </button>
           </div>
         </div>
       </div>
@@ -334,23 +335,7 @@ const ChatInterface = () => {
             className="prompt-toggle-button"
             aria-label="Toggle Prompts"
           >
-            {showPrompts ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="prompt-icon"
-              >
-                <path d="M19 13H5v-2h14v2z" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="prompt-icon"
-              >
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-              </svg>
-            )}
+            <LightbulbIcon size={16} color="black" />
           </button>
           <textarea
             value={inputValue}
