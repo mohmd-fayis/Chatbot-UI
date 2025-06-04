@@ -16,7 +16,6 @@ type BotMessage = {
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-
   const [useRAG, setUseRAG] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -29,15 +28,14 @@ const ChatInterface = () => {
   const fetchMessages = async () => {
     const response = await fetch('http://localhost:8000/chat');
     const data: Message[] = await response.json();
-    console.log("fetched messages: ", data);
     setMessages([
       {
         id: '1',
         role: 'assistant',
-        content: [{ component: 'text', content: 'Hello! How can I help you today?' }],
+        content: 'Hello! How can I help you today?',
         timestamp: new Date()
       },
-      ...data.map((message, index) => ({
+      ...data?.map((message, index) => ({
         id: `${index + 2}`,
         role: message.role,
         content: message.content,
@@ -61,7 +59,7 @@ const ChatInterface = () => {
     setIsTyping(true);
 
     try {
-      const response = await fetch('http://localhost:8000/chat?rag=false', {
+      const response = await fetch(`http://localhost:8000/chat?rag=${useRAG}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -204,7 +202,7 @@ const renderMessage = (message: Message) => {
         </div>
       </div>
     );
-  } else if (typeof message.content === 'object') {
+  } else {
     return (
       <div key={message.id} className="bot-message-container">
         <div className="bot-message-wrapper">
@@ -212,19 +210,24 @@ const renderMessage = (message: Message) => {
             <Bot size={16} color="white" />
           </div>
           <div className="bot-message-bubble">
-            {message?.content?.map((component, index) => (
-              <div key={index}>
-                {typeof component.content === 'string' && (
-                  <p className="message-text">{component.content}</p>
-                )}
+            {
+              typeof message.content === 'string' ?
+                <p className="message-text">{message.content}</p>
+                :
+                message?.content?.map((component, index) => (
+                  <div key={index}>
+                    {typeof component.content === 'string' && (
+                      <p className="message-text">{component.content}</p>
+                    )}
 
-                {typeof component.content === 'object' && (
-                  <pre className="json-content">
-                    {JSON.stringify(component.content, null, 2)}
-                  </pre>
-                )}
-              </div>
-            ))}
+                    {typeof component.content === 'object' && (
+                      <pre className="json-content">
+                        {JSON.stringify(component.content, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                ))
+            }
           </div>
         </div>
       </div>
