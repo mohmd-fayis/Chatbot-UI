@@ -5,13 +5,19 @@ import './App.css';
 type Message = {
   id: string;
   role: 'user' | 'assistant';
-  content: object | string;
+  content: string | BotMessage[];
   timestamp: Date;
+};
+
+type BotMessage = {
+  component: 'text' | 'table' | 'list' | 'pie_chart' | 'bar_chart';
+  content: object | string;
 };
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
 
+  const [useRAG, setUseRAG] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -22,16 +28,21 @@ const ChatInterface = () => {
 
   const fetchMessages = async () => {
     const response = await fetch('http://localhost:8000/chat');
-    const data = await response.json();
+    const data: Message[] = await response.json();
     console.log("fetched messages: ", data);
     setMessages([
       {
         id: '1',
         role: 'assistant',
-        content: 'Hello! How can I help you today?',
+        content: [{ component: 'text', content: 'Hello! How can I help you today?' }],
         timestamp: new Date()
-      }
-      , ...data
+      },
+      ...data.map((message, index) => ({
+        id: `${index + 2}`,
+        role: message.role,
+        content: message.content,
+        timestamp: new Date()
+      }))
     ]);
   }
 
@@ -50,7 +61,7 @@ const ChatInterface = () => {
     setIsTyping(true);
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      const response = await fetch('http://localhost:8000/chat?rag=false', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -58,11 +69,11 @@ const ChatInterface = () => {
         body: JSON.stringify({ query: inputValue })
       });
 
-      const data = await response.json();
+      const responseData: { response: BotMessage[] } = await response.json();
       const botMessage: Message = {
         id: `${Date.now()}`,
         role: 'assistant',
-        content: data,
+        content: responseData.response,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botMessage]);
@@ -73,7 +84,7 @@ const ChatInterface = () => {
         {
           id: `${Date.now()}`,
           role: 'assistant',
-          content: 'I am sorry, I could not process your request. Please try again.',
+          content: [{ component: "text", content: "I'm sorry, something went wrong." }],
           timestamp: new Date()
         }
       ]);
@@ -103,12 +114,28 @@ const ChatInterface = () => {
       {/* Header */}
       <div className="chat-header">
         <div className="chat-header-content">
-          <div className="chat-header-avatar">
-            <Bot size={20} color="white" />
+          <div className="chat-header-left">
+            <div className="chat-header-avatar">
+              <Bot size={20} color="white" />
+            </div>
+            <div>
+              <h1 className="chat-header-title">AI Assistant</h1>
+              <p className="chat-header-subtitle">Online</p>
+            </div>
           </div>
-          <div>
-            <h1 className="chat-header-title">AI Assistant</h1>
-            <p className="chat-header-subtitle">Online</p>
+          <div className="rag-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={useRAG}
+                onChange={() => setUseRAG(!useRAG)}
+                className="toggle-input"
+              />
+              <span className="toggle-slider"></span>
+              <span className="toggle-text">
+                {'RAG MODE'}
+              </span>
+            </label>
           </div>
         </div>
       </div>
@@ -116,7 +143,7 @@ const ChatInterface = () => {
       {/* Messages Container */}
       <div className="chat-messages-container">
         <div className="chat-messages-wrapper">
-          {messages.map(renderMessage)}
+          {messages?.map(renderMessage)}
 
           {/* Typing Indicator */}
           {isTyping && (
@@ -163,7 +190,7 @@ const ChatInterface = () => {
   );
 };
 
-const renderMessage = (message: Message, index: number) => {
+const renderMessage = (message: Message) => {
   if (message.role === 'user' && typeof message.content === 'string') {
     return (
       <div key={message.id} className="user-message-container">
@@ -177,7 +204,7 @@ const renderMessage = (message: Message, index: number) => {
         </div>
       </div>
     );
-  } else {
+  } else if (typeof message.content === 'object') {
     return (
       <div key={message.id} className="bot-message-container">
         <div className="bot-message-wrapper">
@@ -185,13 +212,19 @@ const renderMessage = (message: Message, index: number) => {
             <Bot size={16} color="white" />
           </div>
           <div className="bot-message-bubble">
-            {typeof message.content === 'object' ? (
-              <pre className="json-content">
-                {JSON.stringify(message.content, null, 2)}
-              </pre>
-            ) : (
-              <p className="message-text">{message.content}</p>
-            )}
+            {message?.content?.map((component, index) => (
+              <div key={index}>
+                {typeof component.content === 'string' && (
+                  <p className="message-text">{component.content}</p>
+                )}
+
+                {typeof component.content === 'object' && (
+                  <pre className="json-content">
+                    {JSON.stringify(component.content, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
