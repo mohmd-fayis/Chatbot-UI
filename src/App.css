@@ -140,7 +140,7 @@
 .message-text {
   font-size: 14px;
   line-height: 1.5;
-  margin: 0;
+  margin: 3;
 }
 
 .json-content {
@@ -350,3 +350,119 @@
     padding: 12px;
   }
 }
+
+
+
+/* Table Styles */
+  .table-component {
+    width: 100%;
+    max-width: 1200px;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+
+  .table-header {
+    background-color: #f3f4f6;
+    padding: 0.75rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background-color: #f9fafb;
+  }
+
+  .table td {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .table tr:nth-child(even) {
+    background-color: white;
+  }
+
+  .table tr:nth-child(odd) {
+    background-color: #f9fafb;
+  }
+
+  /* List Styles */
+  .list-component {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    padding: 1rem;
+  }
+
+  .list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .list-item {
+    padding: 0.5rem;
+    background-color: #f9fafb;
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .list-item:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Chart Styles */
+  .chart-component {
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    padding: .5rem;
+    /* margin: 1rem; */
+  }
+
+  .chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 1rem;
+  }
+
+  .chart-container {
+    height: 20rem;
+  }
+
+  /* Tooltip Styles */
+  .chart-tooltip {
+    background-color: white;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .tooltip-label {
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .tooltip-value {
+    margin: 0;
+  }
