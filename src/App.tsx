@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Bot } from "lucide-react";
+import { Send, User, Bot, RotateCcw } from "lucide-react";
 import "./App.css";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+function toTitleCase(str: string) {
+  return str.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1));
+}
+
 import {
   PieChart,
   Pie,
@@ -76,7 +82,15 @@ const COLORS = [
   "#82ca9d",
 ];
 
-// Tooltip
+const defaultPrompts = [
+  "Which department has the highest number of employees?",
+  "Who are the top vendors providing maintenance services most frequently",
+  "Are there any departments with outstanding (unresolved) maintenance issues?",
+  "Who heads each department?",
+  "What is the distribution of employees by designation?",
+];
+
+// Tooltip Component
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -94,6 +108,7 @@ const ChatInterface = () => {
   const [useRAG, setUseRAG] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showPrompts, setShowPrompts] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -101,21 +116,63 @@ const ChatInterface = () => {
   };
 
   const fetchMessages = async () => {
-    const response = await fetch(`${API_BASE_URL}/chat`);
-    const data: Message[] = await response.json();
-    setMessages([
-      {
-        id: "1",
-        role: "assistant",
-        content: "Hello! How can I help you today?",
-        timestamp: new Date(),
-      },
-      ...data.map((message, index) => ({
-        ...message,
-        id: `${index + 2}`,
-        timestamp: new Date(message.timestamp),
-      })),
-    ]);
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`);
+      const data: Message[] = await response.json();
+      setMessages([
+        {
+          id: "1",
+          role: "assistant",
+          content: "Hello! How can I help you today?",
+          timestamp: new Date(),
+        },
+        ...data.map((message, index) => ({
+          ...message,
+          id: `${index + 2}`,
+          timestamp: new Date(message.timestamp),
+        })),
+      ]);
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+      // Set default message if fetch fails
+      setMessages([
+        {
+          id: "1",
+          role: "assistant",
+          content: "Hello! How can I help you today?",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  };
+
+  const clearChat = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat/clear`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        // Reset to initial state
+        setMessages([
+          {
+            id: "1",
+            role: "assistant",
+            content: "Hello! How can I help you today?",
+            timestamp: new Date(),
+          },
+        ]);
+        setInputValue("");
+        setShowPrompts(false);
+      } else {
+        console.error("Failed to clear chat");
+      }
+    } catch (error) {
+      console.error("Error clearing chat:", error);
+    }
   };
 
   const handleSend = async () => {
@@ -129,6 +186,7 @@ const ChatInterface = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue("");
     setIsTyping(true);
 
@@ -138,24 +196,28 @@ const ChatInterface = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query: inputValue }),
+        body: JSON.stringify({ query: currentInput }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const responseData: { response: BotMessage[] } = await response.json();
 
       const botMessage: Message = {
-        id: `${Date.now()}`,
+        id: `${Date.now()}-bot`,
         role: "assistant",
         content: responseData.response,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.log("Failed to get response: ", error);
+      console.error("Failed to get response: ", error);
       setMessages((prev) => [
         ...prev,
         {
-          id: `${Date.now()}`,
+          id: `${Date.now()}-error`,
           role: "assistant",
           content: [
             { component: "text", content: "I'm sorry, something went wrong." },
@@ -175,6 +237,11 @@ const ChatInterface = () => {
     }
   };
 
+  const handlePromptSelect = (prompt: string) => {
+    setInputValue(prompt);
+    setShowPrompts(false);
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -192,21 +259,31 @@ const ChatInterface = () => {
               <Bot size={20} color="white" />
             </div>
             <div>
-              <h1 className="chat-header-title">AI Assistant</h1>
+              <h1 className="chat-header-title">Lark AI Assistant</h1>
               <p className="chat-header-subtitle">Online</p>
             </div>
           </div>
-          <div className="rag-toggle">
-            <label className="toggle-label">
-              <input
-                type="checkbox"
-                checked={useRAG}
-                onChange={() => setUseRAG(!useRAG)}
-                className="toggle-input"
-              />
-              <span className="toggle-slider"></span>
-              <span className="toggle-text">RAG MODE</span>
-            </label>
+          <div className="chat-header-right">
+            <button
+              onClick={clearChat}
+              className="new-chat-button"
+              title="Start New Chat"
+            >
+              <RotateCcw size={16} />
+              <span>New Chat</span>
+            </button>
+            <div className="rag-toggle">
+              <label className="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={useRAG}
+                  onChange={() => setUseRAG(!useRAG)}
+                  className="toggle-input"
+                />
+                <span className="toggle-slider"></span>
+                <span className="toggle-text">RAG MODE</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -237,8 +314,44 @@ const ChatInterface = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {showPrompts && (
+        <div className="prompt-list">
+          {defaultPrompts.map((prompt, idx) => (
+            <button
+              key={idx}
+              onClick={() => handlePromptSelect(prompt)}
+              className="prompt-item"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="chat-input-area">
         <div className="chat-input-container">
+          <button
+            onClick={() => setShowPrompts(!showPrompts)}
+            className="prompt-toggle-button"
+            aria-label="Toggle Prompts"
+          >
+            {showPrompts ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="prompt-icon"
+              >
+                <path d="M19 13H5v-2h14v2z" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="prompt-icon"
+              >
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+              </svg>
+            )}
+          </button>
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -358,20 +471,33 @@ const RenderComponent = ({ component }: { component: BotMessage }) => {
 
   if (component.component === "pie_chart") {
     const content = component.content;
-
     const isArrayContent = Array.isArray(content);
+    if (isArrayContent && content.length === 0) return null;
 
-    // Convert raw array content into PieChartData[]
-    const data: PieChartData[] = isArrayContent
-      ? content.map((item: any) => ({
-          name: item.department,
-          value: item.employee_count,
-        }))
-      : (content as PieChartContent).data;
+    let data: PieChartData[] = [];
+    let nameKey = "name";
+    let valueKey = "value";
+    let title = "Pie Chart";
 
-    const title = !isArrayContent
-      ? (content as PieChartContent).title || "Pie Chart"
-      : "Pie Chart";
+    if (isArrayContent) {
+      const firstItem = content[0] || {};
+
+      // Try to dynamically infer nameKey and valueKey
+      const keys = Object.keys(firstItem);
+      if (keys.length >= 2) {
+        nameKey = keys[0];
+        valueKey = keys[1];
+      }
+
+      data = content.map((item: any) => ({
+        name: item[nameKey],
+        value: item[valueKey],
+      }));
+    } else {
+      const pieContent = content as PieChartContent;
+      data = pieContent.data;
+      title = pieContent.title || "Pie Chart";
+    }
 
     return (
       <div className="chart-component">
@@ -405,25 +531,34 @@ const RenderComponent = ({ component }: { component: BotMessage }) => {
 
   if (component.component === "bar_chart") {
     const content = component.content;
-
     const isArrayContent = Array.isArray(content);
+    if (isArrayContent && content.length === 0) return null;
 
-    const data: BarChartData[] = isArrayContent
-      ? (content as BarChartData[])
-      : (content as BarChartContent).data || [];
+    let data: BarChartData[] = [];
+    let xAxis = "name";
+    let yAxis = "value";
+    let name = "Value";
+    let title = "Bar Chart";
 
-    const title = !isArrayContent
-      ? (content as BarChartContent).title || "Bar Chart"
-      : "Bar Chart";
-    const name = !isArrayContent
-      ? (content as BarChartContent).name || "Value"
-      : "Employee Count";
-    const xAxis = !isArrayContent
-      ? (content as BarChartContent).xAxis || "name"
-      : "department";
-    const yAxis = !isArrayContent
-      ? (content as BarChartContent).yAxis || "value"
-      : "employee_count";
+    if (isArrayContent) {
+      const firstItem = content[0] as BarChartData;
+      const keys = Object.keys(firstItem);
+
+      if (keys.length >= 2) {
+        xAxis = keys[0];
+        yAxis = keys[1];
+        name = toTitleCase(yAxis.replace(/_/g, " "));
+      }
+
+      data = content as BarChartData[];
+    } else {
+      const barContent = content as BarChartContent;
+      data = barContent.data || [];
+      xAxis = barContent.xAxis || "name";
+      yAxis = barContent.yAxis || "value";
+      name = barContent.name || "Value";
+      title = barContent.title || "Bar Chart";
+    }
 
     return (
       <div className="chart-component">
