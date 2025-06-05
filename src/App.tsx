@@ -1,13 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, User, Bot, PlusIcon, LightbulbIcon } from "lucide-react";
 import "./App.css";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-function toTitleCase(str: string) {
-  return str.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1));
-}
-
 import {
   PieChart,
   Pie,
@@ -23,7 +16,7 @@ import {
 } from "recharts";
 
 // Types
-export type BotComponentType =
+type BotComponentType =
   | "text"
   | "table"
   | "list"
@@ -42,7 +35,7 @@ type BarChartContent = {
   data: BarChartData[];
 };
 
-export type TableContent =
+type TableContent =
   | {
     title?: string;
     columns: string[];
@@ -60,17 +53,20 @@ type PieChartContent = {
   data: PieChartData[];
 };
 
-export type BotMessage = {
+type BotMessage = {
   component: BotComponentType;
   content: string | TableContent | string[] | PieChartContent | BarChartContent;
 };
 
-export type Message = {
+type Message = {
   id: string;
   role: "user" | "assistant";
   content: string | BotMessage[];
   timestamp: Date;
 };
+
+// API
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Chart colors
 const COLORS = [
@@ -91,18 +87,9 @@ const defaultPrompts = [
   "Which are the assets frequently getting damaged?"
 ];
 
-// Tooltip Component
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="chart-tooltip">
-        <p className="tooltip-label">{`${label || payload[0].name}`}</p>
-        <p className="tooltip-value">{`${payload[0].value}`}</p>
-      </div>
-    );
-  }
-  return null;
-};
+function toTitleCase(str: string) {
+  return str.replace(/\w\S*/g, (txt) => txt[0].toUpperCase() + txt.slice(1));
+}
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -110,6 +97,7 @@ const ChatInterface = () => {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -241,6 +229,7 @@ const ChatInterface = () => {
   const handlePromptSelect = (prompt: string) => {
     setInputValue(prompt);
     setShowPrompts(false);
+    inputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -338,6 +327,7 @@ const ChatInterface = () => {
             <LightbulbIcon size={16} color="black" />
           </button>
           <textarea
+            ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyPress}
@@ -394,6 +384,19 @@ const RenderMessage = ({ message }: { message: Message }) => {
   );
 };
 
+// Tooltip Component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="chart-tooltip">
+        <p className="tooltip-label">{`${label || payload[0].name}`}</p>
+        <p className="tooltip-value">{`${payload[0].value}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const RenderComponent = ({ component }: { component: BotMessage }) => {
   if (component.component === "text") {
     return <p className="message-text">{String(component.content)}</p>;
@@ -424,6 +427,8 @@ const RenderComponent = ({ component }: { component: BotMessage }) => {
     const rows = isStructured
       ? content.rows
       : (content as any[]).map((obj) => Object.values(obj));
+
+    if (rows.length === 0) return null;
 
     return (
       <div className="table-component">
