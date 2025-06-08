@@ -405,24 +405,15 @@
 }
 
 /* List Styles */
-.list-component {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  padding: 1rem;
-}
 
 .list {
-  list-style: none;
-  padding: 0;
+  list-style: outside;
+  padding-left: 1rem;
   margin: 0;
 }
 
 .list-item {
-  padding: 0.5rem;
-  background-color: #f9fafb;
-  border-radius: 0.25rem;
-  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .list-item:last-child {
